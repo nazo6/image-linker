@@ -53,19 +53,36 @@ fn main() {
 
         (source, target)
     };
+    let source = settings.0;
     let target = settings.1;
 
     let mut cnt = 0;
-    let mut skipped = 0;
+    let mut skipped_exist = 0;
+    let mut skipped_no_image = 0;
 
-    for entry in walkdir::WalkDir::new(&settings.0).into_iter().flatten() {
+    for entry in walkdir::WalkDir::new(&source).into_iter().flatten() {
         if entry.file_type().is_file() {
             let source_file_path = entry.path();
-            let file_name = source_file_path.file_name().unwrap();
-            let target_file_path = target.clone().join(file_name);
+            let relative_path = source_file_path.strip_prefix(&source).unwrap();
+            let target_file_name = relative_path.iter().fold(String::new(), |a, b| {
+                if a.is_empty() {
+                    return b.to_string_lossy().to_string();
+                }
+                format!("{a} - {}", b.to_string_lossy())
+            }) + &source_file_path.file_name().unwrap().to_string_lossy();
+            let target_file_path = target.clone().join(target_file_name);
+
+            if !source_file_path
+                .extension()
+                .map(|ext| ext == "png")
+                .unwrap_or(false)
+            {
+                skipped_no_image += 1;
+                continue;
+            }
 
             if target_file_path.exists() {
-                skipped += 1;
+                skipped_exist += 1;
                 continue;
             }
 
@@ -82,8 +99,8 @@ fn main() {
     simple_message(
         "Success",
         &format!(
-            "{:?}\n↓\n{:?}:\n\nSuccessfully created {} symlinks\nSkipped {} files",
-            settings.0, target, cnt, skipped
+            "{:?}\n↓\n{:?}:\n\nSuccessfully created {} symlinks\nSkipped {} non-image files\nSkipped {} existing files",
+            source, target, cnt, skipped_no_image, skipped_exist
         ),
     );
 }
