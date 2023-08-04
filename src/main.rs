@@ -69,7 +69,7 @@ fn main() {
                     return b.to_string_lossy().to_string();
                 }
                 format!("{a} - {}", b.to_string_lossy())
-            }) + &source_file_path.file_name().unwrap().to_string_lossy();
+            });
             let target_file_path = target.clone().join(target_file_name);
 
             if !source_file_path
