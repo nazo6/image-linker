@@ -56,9 +56,28 @@ fn main() {
     let source = settings.0;
     let target = settings.1;
 
+    let mut delete_cnt = 0;
     let mut cnt = 0;
-    let mut skipped_exist = 0;
-    let mut skipped_no_image = 0;
+    let mut skipped_no_img = 0;
+
+    // delete png symlink in target
+    for entry in std::fs::read_dir(&target).unwrap().flatten() {
+        if entry.file_type().unwrap().is_symlink() {
+            let target_file_path = entry.path();
+            if target_file_path
+                .extension()
+                .map(|ext| ext == "png")
+                .unwrap_or(false)
+            {
+                if let Err(e) = std::fs::remove_file(target_file_path) {
+                    println!("{:?}", e);
+                    error_message("Error", &format!("Failed to remove file:\n\n{:?}", e));
+                    return;
+                }
+                delete_cnt += 1;
+            }
+        }
+    }
 
     for entry in walkdir::WalkDir::new(&source).into_iter().flatten() {
         if entry.file_type().is_file() {
@@ -77,12 +96,7 @@ fn main() {
                 .map(|ext| ext == "png")
                 .unwrap_or(false)
             {
-                skipped_no_image += 1;
-                continue;
-            }
-
-            if target_file_path.exists() {
-                skipped_exist += 1;
+                skipped_no_img += 1;
                 continue;
             }
 
@@ -99,8 +113,8 @@ fn main() {
     simple_message(
         "Success",
         &format!(
-            "{:?}\n↓\n{:?}:\n\nSuccessfully created {} symlinks\nSkipped {} non-image files\nSkipped {} existing files",
-            source, target, cnt, skipped_no_image, skipped_exist
+            "{:?}\n↓\n{:?}:\n\nDeleted {} symlinks\n\nSuccessfully created {} symlinks\nSkipped {} non-image files",
+            source, target,delete_cnt, cnt, skipped_no_img
         ),
     );
 }
